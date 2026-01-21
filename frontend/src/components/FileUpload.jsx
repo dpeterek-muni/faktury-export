@@ -41,13 +41,25 @@ function FileUpload({ onUpload }) {
     setIsLoading(true);
     setError(null);
 
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
+      // Convert file to base64 for Vercel serverless
+      const arrayBuffer = await file.arrayBuffer();
+      const base64 = btoa(
+        new Uint8Array(arrayBuffer).reduce(
+          (data, byte) => data + String.fromCharCode(byte),
+          ''
+        )
+      );
+
       const response = await fetch('/api/upload', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          fileData: base64,
+          filename: file.name,
+        }),
       });
 
       const data = await response.json();
