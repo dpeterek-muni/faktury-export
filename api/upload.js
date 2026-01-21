@@ -33,10 +33,21 @@ function parseDate(value) {
   return null;
 }
 
-function canBeInvoiced(row) {
-  const hodnota = parseNumber(row['Fakturovaná hodnota']);
-  const vyfakturovano = row['Vyfakturováno'];
-  return hodnota > 0 && vyfakturovano !== 'ano' && vyfakturovano !== 'áno';
+function canBeInvoiced(row, fakturovanaHodnota, vyfakturovano) {
+  return fakturovanaHodnota > 0 && vyfakturovano !== 'ano' && vyfakturovano !== 'áno' && vyfakturovano !== 'částečně' && vyfakturovano !== 'čiastočne';
+}
+
+// Find column by partial match (handles encoding issues)
+function findColumn(row, ...patterns) {
+  const keys = Object.keys(row);
+  for (const pattern of patterns) {
+    const found = keys.find(k =>
+      k.toLowerCase().includes(pattern.toLowerCase()) ||
+      k.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(pattern.toLowerCase())
+    );
+    if (found && row[found] !== undefined) return row[found];
+  }
+  return null;
 }
 
 export default async function handler(req, res) {
@@ -67,33 +78,38 @@ export default async function handler(req, res) {
     const mainSheet = workbook.Sheets['Databáza klientov'] || workbook.Sheets[workbook.SheetNames[0]];
     const rawData = XLSX.utils.sheet_to_json(mainSheet, { defval: null });
 
-    const clients = rawData.map((row, index) => ({
-      id: index + 1,
-      originalId: row['ID'],
-      ico: normalizeICO(row['IČO']),
-      kodObce: row['Kód obce'],
-      nazevKlienta: row['Názov klienta'],
-      okres: row['Okres'],
-      kraj: row['Kraj'],
-      stat: row['Štát'],
-      pocetObyvatel: row['Počet obyvatel / zamestnancov'],
-      typKlienta: row['Typ klienta'],
-      konzultant: row['Konzultant'],
-      typCinnosti: row['Typ činnosti'],
-      sluzba: row['Zakoupená služba'],
-      intervalPlatby: row['Interval platby (v rokoch)'],
-      hodnotaObjednavky: parseNumber(row['Hodnota objednávky']),
-      fakturovanaHodnota: parseNumber(row['Fakturovaná hodnota']),
-      datumAktivace: parseDate(row['Datum aktivace']),
-      datumKonceFO: parseDate(row['Datum konca fakturačného obdobia']),
-      mesiacZaciatku: row['Mesiac začiatku licencie'],
-      vyfakturovano: row['Vyfakturováno'],
-      mesiacFakturace: parseDate(row['Měsíc fakturace (typicky používáme první den měsíce)']),
-      platceDPH: row['Platce DPH (ano/ne)'] === 'ano',
-      poznamkaFakturace: row['Poznámka\nk fakturaci'],
-      selected: false,
-      canInvoice: canBeInvoiced(row),
-    }));
+    const clients = rawData.map((row, index) => {
+      const fakturovanaHodnota = parseNumber(findColumn(row, 'fakturovan', 'Fakturovaná hodnota'));
+      const vyfakturovano = findColumn(row, 'vyfakturov', 'Vyfakturováno') || '-';
+
+      return {
+        id: index + 1,
+        originalId: row['ID'],
+        ico: normalizeICO(findColumn(row, 'IČO', 'ICO', 'ičo')),
+        kodObce: findColumn(row, 'Kód obce', 'kod obce'),
+        nazevKlienta: findColumn(row, 'Názov klienta', 'nazov klienta', 'Název'),
+        okres: row['Okres'],
+        kraj: row['Kraj'],
+        stat: findColumn(row, 'Štát', 'Stat', 'štát'),
+        pocetObyvatel: findColumn(row, 'Počet obyvatel', 'pocet obyvatel'),
+        typKlienta: findColumn(row, 'Typ klienta'),
+        konzultant: row['Konzultant'],
+        typCinnosti: findColumn(row, 'Typ činnosti', 'typ cinnosti'),
+        sluzba: findColumn(row, 'Zakoupená služba', 'zakoupena sluzba', 'služba'),
+        intervalPlatby: findColumn(row, 'Interval platby'),
+        hodnotaObjednavky: parseNumber(findColumn(row, 'Hodnota objednávky', 'hodnota objednavky')),
+        fakturovanaHodnota,
+        datumAktivace: parseDate(findColumn(row, 'Datum aktivace')),
+        datumKonceFO: parseDate(findColumn(row, 'Datum konca faktura', 'datum konca')),
+        mesiacZaciatku: findColumn(row, 'Mesiac začiatku', 'mesiac zaciatku'),
+        vyfakturovano,
+        mesiacFakturace: parseDate(findColumn(row, 'Měsíc fakturace', 'mesic fakturace')),
+        platceDPH: findColumn(row, 'Platce DPH') === 'ano',
+        poznamkaFakturace: findColumn(row, 'Poznámka', 'poznamka'),
+        selected: false,
+        canInvoice: canBeInvoiced(row, fakturovanaHodnota, vyfakturovano),
+      };
+    });
 
     res.json({
       success: true,
