@@ -71,7 +71,8 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      onSelectionChange(filteredClients.filter((c) => c.canInvoice));
+      // Select all filtered clients (not just canInvoice)
+      onSelectionChange(filteredClients);
     } else {
       onSelectionChange([]);
     }
@@ -87,7 +88,7 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
 
   const isSelected = (client) => selectedClients.some((c) => c.id === client.id);
 
-  const selectableCount = filteredClients.filter((c) => c.canInvoice).length;
+  const selectableCount = filteredClients.length;
   const selectedCount = selectedClients.length;
 
   const formatCurrency = (value) => {
@@ -159,7 +160,7 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
         </div>
         <div className="mt-2 text-sm text-gray-500">
           Zobrazeno {filteredClients.length} z {clients.length} záznamů
-          {selectableCount > 0 && ` (${selectableCount} lze fakturovat)`}
+          {selectedCount > 0 && ` (vybráno: ${selectedCount})`}
         </div>
       </div>
 
@@ -220,17 +221,17 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
             {filteredClients.map((client) => (
               <tr
                 key={client.id}
-                className={`hover:bg-gray-50 ${
+                className={`hover:bg-gray-50 cursor-pointer ${
                   isSelected(client) ? 'bg-blue-50' : ''
-                } ${!client.canInvoice ? 'opacity-50' : ''}`}
+                }`}
+                onClick={() => handleSelectOne(client, !isSelected(client))}
               >
                 <td className="px-3 py-2">
                   <input
                     type="checkbox"
                     checked={isSelected(client)}
-                    disabled={!client.canInvoice}
                     onChange={(e) => handleSelectOne(client, e.target.checked)}
-                    className="rounded border-gray-300"
+                    className="rounded border-gray-300 cursor-pointer"
                   />
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">{client.ico || '-'}</td>
