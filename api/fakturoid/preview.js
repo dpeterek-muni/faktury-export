@@ -2,19 +2,21 @@ function groupByICO(clients) {
   const groups = new Map();
 
   for (const client of clients) {
-    if (!client.ico) continue;
+    // Use ICO or generate key from name if no ICO
+    const key = client.ico || `no-ico-${client.nazevKlienta || client.id}`;
 
-    if (!groups.has(client.ico)) {
-      groups.set(client.ico, {
-        ico: client.ico,
+    if (!groups.has(key)) {
+      groups.set(key, {
+        ico: client.ico || 'BEZ IČO',
         nazevKlienta: client.nazevKlienta,
         stat: client.stat,
         platceDPH: client.platceDPH,
         items: [],
+        hasIco: !!client.ico,
       });
     }
 
-    groups.get(client.ico).items.push(client);
+    groups.get(key).items.push(client);
   }
 
   return Array.from(groups.values());
@@ -46,13 +48,8 @@ export default async function handler(req, res) {
 
     const groups = groupByICO(clients);
 
-    // Filter CZE and SVK only
-    const filteredGroups = groups.filter(g => {
-      const firstItem = g.items[0];
-      return firstItem && ['CZE', 'SVK'].includes(firstItem.stat);
-    });
-
-    const preview = filteredGroups.map(group => {
+    // Show all for preview (filter happens on export)
+    const preview = groups.map(group => {
       const includePeriodinName = options?.includePeriodinName ?? true;
 
       const lines = group.items.map(item => {
@@ -78,6 +75,7 @@ export default async function handler(req, res) {
         lines,
         total,
         taxableFulfillmentDue: group.items[0]?.datumAktivace,
+        hasIco: group.hasIco,
       };
     });
 
