@@ -23,6 +23,7 @@ function App() {
     currency: 'CZK',
   });
   const [preview, setPreview] = useState(null);
+  const [editedPreview, setEditedPreview] = useState(null);
   const [step, setStep] = useState(1); // 1: Upload, 2: Select, 3: Preview, 4: Export
 
   const handleFileUpload = (data) => {
@@ -247,7 +248,11 @@ function App() {
               </div>
             </div>
 
-            <InvoicePreview invoices={preview} options={invoiceOptions} />
+            <InvoicePreview
+              invoices={preview}
+              options={invoiceOptions}
+              onInvoicesChange={setEditedPreview}
+            />
           </div>
         )}
 
@@ -269,7 +274,7 @@ function App() {
               onConfigChange={setFakturoidConfig}
               clients={selectedClients}
               options={invoiceOptions}
-              preview={preview}
+              preview={editedPreview || preview}
             />
           </div>
         )}

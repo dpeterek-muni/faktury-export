@@ -30,30 +30,6 @@ function getHeaders(accessToken, email) {
   };
 }
 
-function groupByICO(clients) {
-  const groups = new Map();
-  for (const client of clients) {
-    if (!client.ico) continue;
-    if (!groups.has(client.ico)) {
-      groups.set(client.ico, {
-        ico: client.ico,
-        nazevKlienta: client.nazevKlienta,
-        stat: client.stat,
-        platceDPH: client.platceDPH,
-        items: [],
-      });
-    }
-    groups.get(client.ico).items.push(client);
-  }
-  return Array.from(groups.values());
-}
-
-function formatDateCZ(dateStr) {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-}
-
 async function findSubjectByICO(slug, accessToken, email, ico) {
   const url = `${FAKTUROID_API_URL}/accounts/${slug}/subjects/search.json?query=${encodeURIComponent(ico)}`;
   const response = await fetch(url, { method: 'GET', headers: getHeaders(accessToken, email) });
@@ -77,30 +53,25 @@ async function createInvoice(slug, accessToken, email, invoiceData) {
   return await response.json();
 }
 
-function prepareInvoiceData(group, subjectId, options = {}) {
-  const { includePeriodinName = true, vatRate = 21, dueInDays = 14, currency = 'CZK' } = options;
-  const firstItem = group.items[0];
+// Prepare invoice data from the edited preview
+function prepareInvoiceData(invoice, subjectId, options = {}) {
+  const { dueInDays = 14 } = options;
 
-  const lines = group.items.map(item => {
-    let name = item.sluzba || 'Licence';
-    if (includePeriodinName && item.datumAktivace && item.datumKonceFO) {
-      name = `${name} (${formatDateCZ(item.datumAktivace)} - ${formatDateCZ(item.datumKonceFO)})`;
-    }
-    return {
-      name,
-      quantity: 1,
-      unit_name: 'ks',
-      unit_price: item.fakturovanaHodnota || 0,
-      vat_rate: item.platceDPH ? vatRate : 0,
-    };
-  });
+  // Use the edited prices from preview
+  const lines = invoice.lines.map(line => ({
+    name: line.name,
+    quantity: 1,
+    unit_name: 'ks',
+    unit_price: line.editedPrice ?? line.unitPrice ?? 0,
+    vat_rate: line.vatRate ?? 0,
+  }));
 
   return {
     subject_id: subjectId,
     issued_on: new Date().toISOString().split('T')[0],
-    taxable_fulfillment_due: firstItem.datumAktivace || new Date().toISOString().split('T')[0],
+    taxable_fulfillment_due: invoice.taxableFulfillmentDue || new Date().toISOString().split('T')[0],
     due: dueInDays,
-    currency,
+    currency: invoice.currency || 'CZK',
     lines,
     status: 'open',
   };
@@ -123,7 +94,7 @@ export default async function handler(req, res) {
 
     const hasServerCredentials = envClientId && envClientSecret && envSlug;
 
-    const { clients, options, clientId: bodyClientId, clientSecret: bodyClientSecret, slug: bodySlug, email: bodyEmail } = req.body || {};
+    const { invoices, options, clientId: bodyClientId, clientSecret: bodyClientSecret, slug: bodySlug, email: bodyEmail } = req.body || {};
 
     const clientId = hasServerCredentials ? envClientId : bodyClientId;
     const clientSecret = hasServerCredentials ? envClientSecret : bodyClientSecret;
@@ -134,52 +105,57 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Fakturoid credentials required', needsCredentials: true });
     }
 
-    if (!clients) {
-      return res.status(400).json({ error: 'Missing clients data' });
+    if (!invoices || !Array.isArray(invoices)) {
+      return res.status(400).json({ error: 'Missing invoices data' });
     }
 
     // Get OAuth access token
     const accessToken = await getAccessToken(clientId, clientSecret);
 
-    const groups = groupByICO(clients);
-    const filteredGroups = groups.filter(g => ['CZE', 'SVK'].includes(g.items[0]?.stat));
+    // Filter invoices - only those with valid IČO and CZE/SVK (for first phase)
+    const validInvoices = invoices.filter(inv =>
+      inv.ico &&
+      inv.ico !== 'BEZ IČO' &&
+      ['CZE', 'SVK'].includes(inv.stat)
+    );
 
     const results = [];
     let successCount = 0;
     let errorCount = 0;
 
-    for (const group of filteredGroups) {
+    for (const invoice of validInvoices) {
       try {
-        const subject = await findSubjectByICO(slug, accessToken, email, group.ico);
+        const subject = await findSubjectByICO(slug, accessToken, email, invoice.ico);
 
         if (!subject) {
           results.push({
             success: false,
-            ico: group.ico,
-            nazev: group.nazevKlienta,
-            error: `Subjekt s IČO ${group.ico} nebyl nalezen`,
+            ico: invoice.ico,
+            nazev: invoice.nazevKlienta,
+            error: `Subjekt s IČO ${invoice.ico} nebyl nalezen`,
           });
           errorCount++;
           continue;
         }
 
-        const invoiceData = prepareInvoiceData(group, subject.id, options || {});
-        const invoice = await createInvoice(slug, accessToken, email, invoiceData);
+        const invoiceData = prepareInvoiceData(invoice, subject.id, options || {});
+        const createdInvoice = await createInvoice(slug, accessToken, email, invoiceData);
 
         results.push({
           success: true,
-          ico: group.ico,
-          nazev: group.nazevKlienta,
-          invoiceId: invoice.id,
-          invoiceNumber: invoice.number,
-          totalAmount: invoice.total,
+          ico: invoice.ico,
+          nazev: invoice.nazevKlienta,
+          invoiceId: createdInvoice.id,
+          invoiceNumber: createdInvoice.number,
+          totalAmount: createdInvoice.total,
+          currency: invoice.currency,
         });
         successCount++;
       } catch (error) {
         results.push({
           success: false,
-          ico: group.ico,
-          nazev: group.nazevKlienta,
+          ico: invoice.ico,
+          nazev: invoice.nazevKlienta,
           error: error.message,
         });
         errorCount++;
@@ -188,7 +164,7 @@ export default async function handler(req, res) {
 
     res.json({
       success: true,
-      totalGroups: filteredGroups.length,
+      totalInvoices: validInvoices.length,
       successCount,
       errorCount,
       results,

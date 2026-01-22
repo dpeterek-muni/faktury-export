@@ -60,8 +60,8 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
     setExportResult(null);
 
     try {
-      // Include credentials if user provided their own (not using server credentials)
-      const body = { clients, options };
+      // Send the preview data (with edited prices and currency) directly
+      const body = { invoices: preview, options };
       if (!config.useServerCredentials && config.clientId) {
         body.clientId = config.clientId;
         body.clientSecret = config.clientSecret;
