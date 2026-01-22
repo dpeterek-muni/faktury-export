@@ -60,20 +60,16 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Hybrid: use env vars if available, otherwise accept from request body
-    const envClientId = process.env.FAKTUROID_CLIENT_ID;
-    const envClientSecret = process.env.FAKTUROID_CLIENT_SECRET;
-    const envSlug = process.env.FAKTUROID_SLUG;
-    const envEmail = process.env.FAKTUROID_EMAIL;
-
-    const hasServerCredentials = envClientId && envClientSecret && envSlug;
-
+    // Get credentials from request body (user-provided) or env vars (server)
     const { icos, clientId: bodyClientId, clientSecret: bodyClientSecret, slug: bodySlug, email: bodyEmail } = req.body || {};
 
-    const clientId = hasServerCredentials ? envClientId : bodyClientId;
-    const clientSecret = hasServerCredentials ? envClientSecret : bodyClientSecret;
-    const slug = hasServerCredentials ? envSlug : bodySlug;
-    const email = (hasServerCredentials ? envEmail : bodyEmail) || 'noreply@example.com';
+    // Prioritize user-provided credentials over server env vars
+    const hasUserCredentials = bodyClientId && bodyClientSecret && bodySlug;
+
+    const clientId = hasUserCredentials ? bodyClientId : process.env.FAKTUROID_CLIENT_ID;
+    const clientSecret = hasUserCredentials ? bodyClientSecret : process.env.FAKTUROID_CLIENT_SECRET;
+    const slug = hasUserCredentials ? bodySlug : process.env.FAKTUROID_SLUG;
+    const email = (hasUserCredentials ? bodyEmail : process.env.FAKTUROID_EMAIL) || 'noreply@example.com';
 
     if (!clientId || !clientSecret || !slug) {
       return res.status(400).json({ error: 'Fakturoid credentials required', needsCredentials: true });

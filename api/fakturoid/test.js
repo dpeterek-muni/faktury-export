@@ -40,21 +40,18 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Hybrid: use env vars if available, otherwise accept from request body
-    const envClientId = process.env.FAKTUROID_CLIENT_ID;
-    const envClientSecret = process.env.FAKTUROID_CLIENT_SECRET;
-    const envSlug = process.env.FAKTUROID_SLUG;
-    const envEmail = process.env.FAKTUROID_EMAIL;
-
-    const hasServerCredentials = envClientId && envClientSecret && envSlug;
-
-    // If request body has credentials and server doesn't have them, use request body
+    // Get credentials from request body (user-provided) or env vars (server)
     const { clientId: bodyClientId, clientSecret: bodyClientSecret, slug: bodySlug, email: bodyEmail } = req.body || {};
 
-    const clientId = hasServerCredentials ? envClientId : bodyClientId;
-    const clientSecret = hasServerCredentials ? envClientSecret : bodyClientSecret;
-    const slug = hasServerCredentials ? envSlug : bodySlug;
-    const email = (hasServerCredentials ? envEmail : bodyEmail) || 'noreply@example.com';
+    // Prioritize user-provided credentials over server env vars
+    const hasUserCredentials = bodyClientId && bodyClientSecret && bodySlug;
+
+    const clientId = hasUserCredentials ? bodyClientId : process.env.FAKTUROID_CLIENT_ID;
+    const clientSecret = hasUserCredentials ? bodyClientSecret : process.env.FAKTUROID_CLIENT_SECRET;
+    const slug = hasUserCredentials ? bodySlug : process.env.FAKTUROID_SLUG;
+    const email = (hasUserCredentials ? bodyEmail : process.env.FAKTUROID_EMAIL) || 'noreply@example.com';
+
+    const useServerCredentials = !hasUserCredentials && clientId && clientSecret && slug;
 
     if (!clientId || !clientSecret || !slug) {
       return res.status(400).json({
@@ -80,7 +77,7 @@ export default async function handler(req, res) {
     }
 
     const account = await response.json();
-    res.json({ success: true, account, useServerCredentials: hasServerCredentials });
+    res.json({ success: true, account, useServerCredentials });
   } catch (error) {
     // If OAuth fails, prompt user to enter their own credentials
     if (error.message.includes('OAuth') || error.message.includes('invalid_client')) {
