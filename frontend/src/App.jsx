@@ -10,9 +10,11 @@ function App() {
   const [selectedClients, setSelectedClients] = useState([]);
   const [fakturoidConfig, setFakturoidConfig] = useState({
     slug: '',
-    apiKey: '',
+    clientId: '',
+    clientSecret: '',
     email: '',
     connected: false,
+    accessToken: '',
   });
   const [invoiceOptions, setInvoiceOptions] = useState({
     includePeriodinName: true,

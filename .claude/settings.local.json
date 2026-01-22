@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(curl -s -X POST \"https://app.fakturoid.cz/api/v3/oauth/token\" -H \"Content-Type: application/x-www-form-urlencoded\" -d \"grant_type=client_credentials\" -d \"client_id=e2cf868116f6d3af28d7d136121a6ce4d1cfe279\" -d \"client_secret=47ed55e10d5ecde578e7b31d03a5ff89bdf76880\")"
+    ]
+  }
+}

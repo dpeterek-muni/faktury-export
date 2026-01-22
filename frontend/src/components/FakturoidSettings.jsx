@@ -5,7 +5,7 @@ function FakturoidSettings({ config, onConfigChange }) {
   const [testResult, setTestResult] = useState(null);
 
   const handleTestConnection = async () => {
-    if (!config.slug || !config.apiKey || !config.email) {
+    if (!config.slug || !config.clientId || !config.clientSecret || !config.email) {
       setTestResult({ success: false, error: 'Vyplňte všechna pole' });
       return;
     }
@@ -19,7 +19,8 @@ function FakturoidSettings({ config, onConfigChange }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           slug: config.slug,
-          apiKey: config.apiKey,
+          clientId: config.clientId,
+          clientSecret: config.clientSecret,
           email: config.email,
         }),
       });
@@ -28,7 +29,7 @@ function FakturoidSettings({ config, onConfigChange }) {
       setTestResult(data);
 
       if (data.success) {
-        onConfigChange({ ...config, connected: true });
+        onConfigChange({ ...config, connected: true, accessToken: data.accessToken });
       }
     } catch (error) {
       setTestResult({ success: false, error: error.message });
@@ -50,23 +51,36 @@ function FakturoidSettings({ config, onConfigChange }) {
             type="text"
             value={config.slug}
             onChange={(e) => onConfigChange({ ...config, slug: e.target.value, connected: false })}
-            placeholder="nazev-uctu"
+            placeholder="danielpeterek"
             className="w-full border rounded-lg px-3 py-2 text-sm"
           />
           <p className="text-xs text-gray-500 mt-1">
-            Z URL: app.fakturoid.cz/api/v3/accounts/<strong>slug</strong>
+            Název účtu z URL Fakturoidu
           </p>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            API klíč (Bearer token)
+            Client ID
+          </label>
+          <input
+            type="text"
+            value={config.clientId}
+            onChange={(e) => onConfigChange({ ...config, clientId: e.target.value, connected: false })}
+            placeholder="e2cf868116f6d3af..."
+            className="w-full border rounded-lg px-3 py-2 text-sm font-mono text-xs"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Client Secret
           </label>
           <input
             type="password"
-            value={config.apiKey}
-            onChange={(e) => onConfigChange({ ...config, apiKey: e.target.value, connected: false })}
-            placeholder="Váš API klíč"
+            value={config.clientSecret}
+            onChange={(e) => onConfigChange({ ...config, clientSecret: e.target.value, connected: false })}
+            placeholder="47ed55e10d5ecde..."
             className="w-full border rounded-lg px-3 py-2 text-sm"
           />
         </div>
@@ -110,7 +124,7 @@ function FakturoidSettings({ config, onConfigChange }) {
                 )}
               </div>
             ) : (
-              <p>Chyba: {testResult.error}</p>
+              <p>Chyba: {JSON.stringify(testResult.error)}</p>
             )}
           </div>
         )}
@@ -130,11 +144,12 @@ function FakturoidSettings({ config, onConfigChange }) {
       </div>
 
       <div className="mt-4 pt-4 border-t text-xs text-gray-500">
-        <p className="font-medium mb-1">Kde najít API klíč?</p>
+        <p className="font-medium mb-1">Kde najít API údaje?</p>
         <ol className="list-decimal list-inside space-y-1">
           <li>Přihlaste se do Fakturoidu</li>
           <li>Nastavení → API a webhooky</li>
-          <li>Vygenerujte nový API token</li>
+          <li>Vytvořte API přístupové údaje</li>
+          <li>Zkopírujte Client ID a Client Secret</li>
         </ol>
       </div>
     </div>
