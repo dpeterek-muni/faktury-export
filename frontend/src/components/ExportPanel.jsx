@@ -21,12 +21,7 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
       const response = await fetch('/api/fakturoid/check-subjects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug: config.slug,
-          apiKey: config.apiKey,
-          email: config.email,
-          icos,
-        }),
+        body: JSON.stringify({ icos }),
       });
 
       const data = await response.json();
@@ -59,13 +54,7 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
       const response = await fetch('/api/fakturoid/create-invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug: config.slug,
-          apiKey: config.apiKey,
-          email: config.email,
-          clients,
-          options,
-        }),
+        body: JSON.stringify({ clients, options }),
       });
 
       const data = await response.json();

@@ -5,11 +5,6 @@ function FakturoidSettings({ config, onConfigChange }) {
   const [testResult, setTestResult] = useState(null);
 
   const handleTestConnection = async () => {
-    if (!config.slug || !config.clientId || !config.clientSecret || !config.email) {
-      setTestResult({ success: false, error: 'Vyplňte všechna pole' });
-      return;
-    }
-
     setIsLoading(true);
     setTestResult(null);
 
@@ -17,19 +12,14 @@ function FakturoidSettings({ config, onConfigChange }) {
       const response = await fetch('/api/fakturoid/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slug: config.slug,
-          clientId: config.clientId,
-          clientSecret: config.clientSecret,
-          email: config.email,
-        }),
+        body: JSON.stringify({}),
       });
 
       const data = await response.json();
       setTestResult(data);
 
       if (data.success) {
-        onConfigChange({ ...config, connected: true, accessToken: data.accessToken });
+        onConfigChange({ ...config, connected: true, account: data.account });
       }
     } catch (error) {
       setTestResult({ success: false, error: error.message });
@@ -43,60 +33,9 @@ function FakturoidSettings({ config, onConfigChange }) {
       <h2 className="text-lg font-semibold mb-4">Fakturoid API</h2>
 
       <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Slug účtu
-          </label>
-          <input
-            type="text"
-            value={config.slug}
-            onChange={(e) => onConfigChange({ ...config, slug: e.target.value, connected: false })}
-            placeholder="danielpeterek"
-            className="w-full border rounded-lg px-3 py-2 text-sm"
-          />
-          <p className="text-xs text-gray-500 mt-1">
-            Název účtu z URL Fakturoidu
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Client ID
-          </label>
-          <input
-            type="text"
-            value={config.clientId}
-            onChange={(e) => onConfigChange({ ...config, clientId: e.target.value, connected: false })}
-            placeholder="e2cf868116f6d3af..."
-            className="w-full border rounded-lg px-3 py-2 text-sm font-mono text-xs"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Client Secret
-          </label>
-          <input
-            type="password"
-            value={config.clientSecret}
-            onChange={(e) => onConfigChange({ ...config, clientSecret: e.target.value, connected: false })}
-            placeholder="47ed55e10d5ecde..."
-            className="w-full border rounded-lg px-3 py-2 text-sm"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Kontaktní email
-          </label>
-          <input
-            type="email"
-            value={config.email}
-            onChange={(e) => onConfigChange({ ...config, email: e.target.value, connected: false })}
-            placeholder="vas@email.cz"
-            className="w-full border rounded-lg px-3 py-2 text-sm"
-          />
-        </div>
+        <p className="text-sm text-gray-600">
+          API credentials jsou bezpečně uloženy na serveru jako environment variables.
+        </p>
 
         <button
           onClick={handleTestConnection}
@@ -124,7 +63,7 @@ function FakturoidSettings({ config, onConfigChange }) {
                 )}
               </div>
             ) : (
-              <p>Chyba: {JSON.stringify(testResult.error)}</p>
+              <p>Chyba: {typeof testResult.error === 'string' ? testResult.error : JSON.stringify(testResult.error)}</p>
             )}
           </div>
         )}
@@ -144,13 +83,14 @@ function FakturoidSettings({ config, onConfigChange }) {
       </div>
 
       <div className="mt-4 pt-4 border-t text-xs text-gray-500">
-        <p className="font-medium mb-1">Kde najít API údaje?</p>
-        <ol className="list-decimal list-inside space-y-1">
-          <li>Přihlaste se do Fakturoidu</li>
-          <li>Nastavení → API a webhooky</li>
-          <li>Vytvořte API přístupové údaje</li>
-          <li>Zkopírujte Client ID a Client Secret</li>
-        </ol>
+        <p className="font-medium mb-1">Konfigurace (admin):</p>
+        <p>Environment variables na Vercelu:</p>
+        <ul className="list-disc list-inside mt-1 font-mono">
+          <li>FAKTUROID_CLIENT_ID</li>
+          <li>FAKTUROID_CLIENT_SECRET</li>
+          <li>FAKTUROID_SLUG</li>
+          <li>FAKTUROID_EMAIL</li>
+        </ul>
       </div>
     </div>
   );

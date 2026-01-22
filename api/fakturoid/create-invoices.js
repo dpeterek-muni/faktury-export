@@ -1,9 +1,31 @@
 const FAKTUROID_API_URL = 'https://app.fakturoid.cz/api/v3';
 
-function getHeaders(apiKey, email) {
+async function getAccessToken(clientId, clientSecret) {
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+  const response = await fetch(`${FAKTUROID_API_URL}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Basic ${credentials}`,
+    },
+    body: JSON.stringify({ grant_type: 'client_credentials' }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`OAuth error: ${error.error_description || error.error}`);
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+function getHeaders(accessToken, email) {
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`,
+    'Authorization': `Bearer ${accessToken}`,
     'User-Agent': `FakturyExport (${email})`,
   };
 }
@@ -32,20 +54,20 @@ function formatDateCZ(dateStr) {
   return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
 }
 
-async function findSubjectByICO(slug, apiKey, email, ico) {
+async function findSubjectByICO(slug, accessToken, email, ico) {
   const url = `${FAKTUROID_API_URL}/accounts/${slug}/subjects/search.json?query=${encodeURIComponent(ico)}`;
-  const response = await fetch(url, { method: 'GET', headers: getHeaders(apiKey, email) });
+  const response = await fetch(url, { method: 'GET', headers: getHeaders(accessToken, email) });
   if (!response.ok) throw new Error(`API error: ${response.status}`);
   const subjects = await response.json();
   const normalizedICO = ico.replace(/[-\s]/g, '');
   return subjects.find(s => s.registration_no?.replace(/[-\s]/g, '') === normalizedICO) || null;
 }
 
-async function createInvoice(slug, apiKey, email, invoiceData) {
+async function createInvoice(slug, accessToken, email, invoiceData) {
   const url = `${FAKTUROID_API_URL}/accounts/${slug}/invoices.json`;
   const response = await fetch(url, {
     method: 'POST',
-    headers: getHeaders(apiKey, email),
+    headers: getHeaders(accessToken, email),
     body: JSON.stringify(invoiceData),
   });
   if (!response.ok) {
@@ -93,11 +115,24 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { slug, apiKey, email, clients, options } = req.body;
+    // Get credentials from environment variables
+    const clientId = process.env.FAKTUROID_CLIENT_ID;
+    const clientSecret = process.env.FAKTUROID_CLIENT_SECRET;
+    const slug = process.env.FAKTUROID_SLUG;
+    const email = process.env.FAKTUROID_EMAIL || 'noreply@example.com';
 
-    if (!slug || !apiKey || !email || !clients) {
-      return res.status(400).json({ error: 'Missing required parameters' });
+    if (!clientId || !clientSecret || !slug) {
+      return res.status(500).json({ error: 'Fakturoid credentials not configured' });
     }
+
+    const { clients, options } = req.body;
+
+    if (!clients) {
+      return res.status(400).json({ error: 'Missing clients data' });
+    }
+
+    // Get OAuth access token
+    const accessToken = await getAccessToken(clientId, clientSecret);
 
     const groups = groupByICO(clients);
     const filteredGroups = groups.filter(g => ['CZE', 'SVK'].includes(g.items[0]?.stat));
@@ -108,7 +143,7 @@ export default async function handler(req, res) {
 
     for (const group of filteredGroups) {
       try {
-        const subject = await findSubjectByICO(slug, apiKey, email, group.ico);
+        const subject = await findSubjectByICO(slug, accessToken, email, group.ico);
 
         if (!subject) {
           results.push({
@@ -122,7 +157,7 @@ export default async function handler(req, res) {
         }
 
         const invoiceData = prepareInvoiceData(group, subject.id, options || {});
-        const invoice = await createInvoice(slug, apiKey, email, invoiceData);
+        const invoice = await createInvoice(slug, accessToken, email, invoiceData);
 
         results.push({
           success: true,

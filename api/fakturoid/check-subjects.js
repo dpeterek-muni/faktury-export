@@ -1,19 +1,41 @@
 const FAKTUROID_API_URL = 'https://app.fakturoid.cz/api/v3';
 
-function getHeaders(apiKey, email) {
+async function getAccessToken(clientId, clientSecret) {
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+
+  const response = await fetch(`${FAKTUROID_API_URL}/oauth/token`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+      'Authorization': `Basic ${credentials}`,
+    },
+    body: JSON.stringify({ grant_type: 'client_credentials' }),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`OAuth error: ${error.error_description || error.error}`);
+  }
+
+  const data = await response.json();
+  return data.access_token;
+}
+
+function getHeaders(accessToken, email) {
   return {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${apiKey}`,
+    'Authorization': `Bearer ${accessToken}`,
     'User-Agent': `FakturyExport (${email})`,
   };
 }
 
-async function findSubjectByICO(slug, apiKey, email, ico) {
+async function findSubjectByICO(slug, accessToken, email, ico) {
   const url = `${FAKTUROID_API_URL}/accounts/${slug}/subjects/search.json?query=${encodeURIComponent(ico)}`;
 
   const response = await fetch(url, {
     method: 'GET',
-    headers: getHeaders(apiKey, email),
+    headers: getHeaders(accessToken, email),
   });
 
   if (!response.ok) {
@@ -38,16 +60,29 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { slug, apiKey, email, icos } = req.body;
+    // Get credentials from environment variables
+    const clientId = process.env.FAKTUROID_CLIENT_ID;
+    const clientSecret = process.env.FAKTUROID_CLIENT_SECRET;
+    const slug = process.env.FAKTUROID_SLUG;
+    const email = process.env.FAKTUROID_EMAIL || 'noreply@example.com';
 
-    if (!slug || !apiKey || !email || !icos) {
-      return res.status(400).json({ error: 'Missing required parameters' });
+    if (!clientId || !clientSecret || !slug) {
+      return res.status(500).json({ error: 'Fakturoid credentials not configured' });
     }
+
+    const { icos } = req.body;
+
+    if (!icos || !Array.isArray(icos)) {
+      return res.status(400).json({ error: 'Missing icos array' });
+    }
+
+    // Get OAuth access token
+    const accessToken = await getAccessToken(clientId, clientSecret);
 
     const results = [];
     for (const ico of icos) {
       try {
-        const subject = await findSubjectByICO(slug, apiKey, email, ico);
+        const subject = await findSubjectByICO(slug, accessToken, email, ico);
         results.push({
           ico,
           found: !!subject,

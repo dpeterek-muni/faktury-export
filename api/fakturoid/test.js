@@ -40,10 +40,17 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { slug, clientId, clientSecret, email } = req.body;
+    // Get credentials from environment variables (secure)
+    const clientId = process.env.FAKTUROID_CLIENT_ID;
+    const clientSecret = process.env.FAKTUROID_CLIENT_SECRET;
+    const slug = process.env.FAKTUROID_SLUG;
+    const email = process.env.FAKTUROID_EMAIL || 'noreply@example.com';
 
-    if (!slug || !clientId || !clientSecret || !email) {
-      return res.status(400).json({ error: 'Missing required parameters: slug, clientId, clientSecret, email' });
+    if (!clientId || !clientSecret || !slug) {
+      return res.status(500).json({
+        success: false,
+        error: 'Fakturoid credentials not configured. Set FAKTUROID_CLIENT_ID, FAKTUROID_CLIENT_SECRET, FAKTUROID_SLUG in environment variables.',
+      });
     }
 
     // Get OAuth access token
@@ -62,7 +69,7 @@ export default async function handler(req, res) {
     }
 
     const account = await response.json();
-    res.json({ success: true, account, accessToken });
+    res.json({ success: true, account });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }
