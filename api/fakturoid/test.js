@@ -82,6 +82,14 @@ export default async function handler(req, res) {
     const account = await response.json();
     res.json({ success: true, account, useServerCredentials: hasServerCredentials });
   } catch (error) {
+    // If OAuth fails, prompt user to enter their own credentials
+    if (error.message.includes('OAuth') || error.message.includes('invalid_client')) {
+      return res.status(400).json({
+        success: false,
+        needsCredentials: true,
+        error: error.message,
+      });
+    }
     res.status(500).json({ success: false, error: error.message });
   }
 }
