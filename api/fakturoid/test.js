@@ -40,16 +40,27 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Get credentials from environment variables (secure)
-    const clientId = process.env.FAKTUROID_CLIENT_ID;
-    const clientSecret = process.env.FAKTUROID_CLIENT_SECRET;
-    const slug = process.env.FAKTUROID_SLUG;
-    const email = process.env.FAKTUROID_EMAIL || 'noreply@example.com';
+    // Hybrid: use env vars if available, otherwise accept from request body
+    const envClientId = process.env.FAKTUROID_CLIENT_ID;
+    const envClientSecret = process.env.FAKTUROID_CLIENT_SECRET;
+    const envSlug = process.env.FAKTUROID_SLUG;
+    const envEmail = process.env.FAKTUROID_EMAIL;
+
+    const hasServerCredentials = envClientId && envClientSecret && envSlug;
+
+    // If request body has credentials and server doesn't have them, use request body
+    const { clientId: bodyClientId, clientSecret: bodyClientSecret, slug: bodySlug, email: bodyEmail } = req.body || {};
+
+    const clientId = hasServerCredentials ? envClientId : bodyClientId;
+    const clientSecret = hasServerCredentials ? envClientSecret : bodyClientSecret;
+    const slug = hasServerCredentials ? envSlug : bodySlug;
+    const email = (hasServerCredentials ? envEmail : bodyEmail) || 'noreply@example.com';
 
     if (!clientId || !clientSecret || !slug) {
-      return res.status(500).json({
+      return res.status(400).json({
         success: false,
-        error: 'Fakturoid credentials not configured. Set FAKTUROID_CLIENT_ID, FAKTUROID_CLIENT_SECRET, FAKTUROID_SLUG in environment variables.',
+        needsCredentials: true,
+        error: 'Zadejte Fakturoid API credentials (Client ID, Client Secret, Slug)',
       });
     }
 
@@ -69,7 +80,7 @@ export default async function handler(req, res) {
     }
 
     const account = await response.json();
-    res.json({ success: true, account });
+    res.json({ success: true, account, useServerCredentials: hasServerCredentials });
   } catch (error) {
     res.status(500).json({ success: false, error: error.message });
   }

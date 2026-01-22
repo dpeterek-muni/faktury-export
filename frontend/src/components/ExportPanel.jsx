@@ -18,10 +18,19 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
     try {
       const icos = [...new Set(preview.map((p) => p.ico))];
 
+      // Include credentials if user provided their own (not using server credentials)
+      const body = { icos };
+      if (!config.useServerCredentials && config.clientId) {
+        body.clientId = config.clientId;
+        body.clientSecret = config.clientSecret;
+        body.slug = config.slug;
+        body.email = config.email;
+      }
+
       const response = await fetch('/api/fakturoid/check-subjects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ icos }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -51,10 +60,19 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
     setExportResult(null);
 
     try {
+      // Include credentials if user provided their own (not using server credentials)
+      const body = { clients, options };
+      if (!config.useServerCredentials && config.clientId) {
+        body.clientId = config.clientId;
+        body.clientSecret = config.clientSecret;
+        body.slug = config.slug;
+        body.email = config.email;
+      }
+
       const response = await fetch('/api/fakturoid/create-invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clients, options }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -82,7 +100,7 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
                   clipRule="evenodd"
                 />
               </svg>
-              Připojeno k Fakturoidu ({config.slug})
+              Připojeno k Fakturoidu {config.account?.subdomain && `(${config.account.subdomain})`}
             </div>
           ) : (
             <div className="text-amber-600 mb-4">

@@ -60,17 +60,24 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    // Get credentials from environment variables
-    const clientId = process.env.FAKTUROID_CLIENT_ID;
-    const clientSecret = process.env.FAKTUROID_CLIENT_SECRET;
-    const slug = process.env.FAKTUROID_SLUG;
-    const email = process.env.FAKTUROID_EMAIL || 'noreply@example.com';
+    // Hybrid: use env vars if available, otherwise accept from request body
+    const envClientId = process.env.FAKTUROID_CLIENT_ID;
+    const envClientSecret = process.env.FAKTUROID_CLIENT_SECRET;
+    const envSlug = process.env.FAKTUROID_SLUG;
+    const envEmail = process.env.FAKTUROID_EMAIL;
+
+    const hasServerCredentials = envClientId && envClientSecret && envSlug;
+
+    const { icos, clientId: bodyClientId, clientSecret: bodyClientSecret, slug: bodySlug, email: bodyEmail } = req.body || {};
+
+    const clientId = hasServerCredentials ? envClientId : bodyClientId;
+    const clientSecret = hasServerCredentials ? envClientSecret : bodyClientSecret;
+    const slug = hasServerCredentials ? envSlug : bodySlug;
+    const email = (hasServerCredentials ? envEmail : bodyEmail) || 'noreply@example.com';
 
     if (!clientId || !clientSecret || !slug) {
-      return res.status(500).json({ error: 'Fakturoid credentials not configured' });
+      return res.status(400).json({ error: 'Fakturoid credentials required', needsCredentials: true });
     }
-
-    const { icos } = req.body;
 
     if (!icos || !Array.isArray(icos)) {
       return res.status(400).json({ error: 'Missing icos array' });
