@@ -1,18 +1,56 @@
 import { useState, useEffect } from 'react';
 
 const CURRENCY_BY_COUNTRY = {
-  CZE: 'CZK',
-  SVK: 'EUR',
-  HUN: 'HUF',
+  CZE: 'CZK',      // Česko
+  SVK: 'EUR',      // Slovensko
+  HUN: 'HUF',      // Maďarsko
+  DEU: 'EUR',      // Německo
+  AUT: 'EUR',      // Rakousko
+  POL: 'PLN',      // Polsko
+  CHE: 'CHF',      // Švýcarsko
+  BEL: 'EUR',      // Belgie
+  NLD: 'EUR',      // Nizozemsko
+  FRA: 'EUR',      // Francie
+  ITA: 'EUR',      // Itálie
+  ESP: 'EUR',      // Španělsko
+  PRT: 'EUR',      // Portugalsko
+  ROU: 'RON',      // Rumunsko
+  BGR: 'BGN',      // Bulharsko
+  HRV: 'EUR',      // Chorvatsko
+  SVN: 'EUR',      // Slovinsko
+  SRB: 'RSD',      // Srbsko
+  BIH: 'BAM',      // Bosna a Hercegovina
+  UKR: 'UAH',      // Ukrajina
+  GBR: 'GBP',      // Velká Británie
+  USA: 'USD',      // USA
 };
 
 const VAT_RATE_BY_COUNTRY = {
-  CZE: 21,
-  SVK: 20,
-  HUN: 27,
+  CZE: 21,   // Česko
+  SVK: 20,   // Slovensko
+  HUN: 27,   // Maďarsko
+  DEU: 19,   // Německo
+  AUT: 20,   // Rakousko
+  POL: 23,   // Polsko
+  CHE: 7.7,  // Švýcarsko
+  BEL: 21,   // Belgie
+  NLD: 21,   // Nizozemsko
+  FRA: 20,   // Francie
+  ITA: 22,   // Itálie
+  ESP: 21,   // Španělsko
+  PRT: 23,   // Portugalsko
+  ROU: 19,   // Rumunsko
+  BGR: 20,   // Bulharsko
+  HRV: 25,   // Chorvatsko
+  SVN: 22,   // Slovinsko
+  SRB: 20,   // Srbsko
+  BIH: 17,   // Bosna a Hercegovina
+  UKR: 20,   // Ukrajina
+  GBR: 20,   // Velká Británie
+  USA: 0,    // USA (state sales tax varies, default to 0)
 };
 
-const CURRENCIES = ['CZK', 'EUR', 'HUF', 'USD', 'GBP'];
+const CURRENCIES = ['CZK', 'EUR', 'HUF', 'PLN', 'CHF', 'RON', 'BGN', 'RSD', 'BAM', 'UAH', 'GBP', 'USD'];
 
 function InvoicePreview({ invoices, options, onInvoicesChange }) {
   const [editableInvoices, setEditableInvoices] = useState([]);
@@ -142,34 +180,41 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
       {/* Country breakdown */}
       <div className="bg-white rounded-lg shadow-sm border p-4">
         <h3 className="font-medium mb-3">Rozdělení podle států</h3>
-        <div className="flex gap-4">
-          {['CZE', 'SVK', 'HUN'].map((stat) => {
-            const countryInvoices = editableInvoices.filter((i) => i.stat === stat);
-            const count = countryInvoices.length;
-            if (count === 0) return null;
+        <div className="flex flex-wrap gap-4">
+          {Array.from(new Set(editableInvoices.map((i) => i.stat)))
+            .sort()
+            .map((stat, idx) => {
+              const countryInvoices = editableInvoices.filter((i) => i.stat === stat);
+              const count = countryInvoices.length;
+              if (count === 0) return null;
 
-            const currency = CURRENCY_BY_COUNTRY[stat];
-            const sum = countryInvoices.reduce((s, i) => s + (i.total || 0), 0);
+              const currency = CURRENCY_BY_COUNTRY[stat] || 'EUR';
+              const sum = countryInvoices.reduce((s, i) => s + (i.total || 0), 0);
 
-            return (
-              <div
-                key={stat}
-                className={`flex-1 p-3 rounded-lg ${
-                  stat === 'CZE'
-                    ? 'bg-blue-50'
-                    : stat === 'SVK'
-                    ? 'bg-green-50'
-                    : 'bg-orange-50'
-                }`}
-              >
-                <p className="text-sm font-medium">
-                  {stat} ({currency})
-                </p>
-                <p className="text-lg font-bold">{count} faktur</p>
-                <p className="text-sm text-gray-600">{formatCurrency(sum, currency)}</p>
-              </div>
-            );
-          })}
+              const colors = [
+                'bg-blue-50',
+                'bg-green-50',
+                'bg-orange-50',
+                'bg-purple-50',
+                'bg-pink-50',
+                'bg-indigo-50',
+                'bg-yellow-50',
+                'bg-red-50',
+              ];
+
+              return (
+                <div
+                  key={stat}
+                  className={`flex-1 min-w-[150px] p-3 rounded-lg ${colors[idx % colors.length]}`}
+                >
+                  <p className="text-sm font-medium">
+                    {stat} ({currency})
+                  </p>
+                  <p className="text-lg font-bold">{count} faktur</p>
+                  <p className="text-sm text-gray-600">{formatCurrency(sum, currency)}</p>
+                </div>
+              );
+            })}
         </div>
       </div>
 
