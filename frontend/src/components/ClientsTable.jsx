@@ -6,7 +6,6 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
     stat: '',
     sluzba: '',
     typCinnosti: '',
-    canInvoice: 'all', // 'all', 'yes', 'no'
   });
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
 
@@ -22,6 +21,11 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
   // Filtered and sorted clients
   const filteredClients = useMemo(() => {
     let result = clients.filter((client) => {
+      // Auto-filter: exclude already invoiced items
+      if (client.vyfakturovano === 'ano' || client.vyfakturovano === 'áno') {
+        return false;
+      }
+
       // Search filter
       if (filters.search) {
         const searchLower = filters.search.toLowerCase();
@@ -40,10 +44,6 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
 
       // Typ cinnosti filter
       if (filters.typCinnosti && client.typCinnosti !== filters.typCinnosti) return false;
-
-      // Can invoice filter
-      if (filters.canInvoice === 'yes' && !client.canInvoice) return false;
-      if (filters.canInvoice === 'no' && client.canInvoice) return false;
 
       return true;
     });
@@ -148,15 +148,6 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
               </option>
             ))}
           </select>
-          <select
-            value={filters.canInvoice}
-            onChange={(e) => setFilters({ ...filters, canInvoice: e.target.value })}
-            className="border rounded-lg px-3 py-2 text-sm"
-          >
-            <option value="all">Vše</option>
-            <option value="yes">Lze fakturovat</option>
-            <option value="no">Nelze fakturovat</option>
-          </select>
         </div>
         <div className="mt-2 text-sm text-gray-500">
           Zobrazeno {filteredClients.length} z {clients.length} záznamů
@@ -214,7 +205,6 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
                 Hodnota
               </th>
               <th className="px-3 py-3 text-left">Období</th>
-              <th className="px-3 py-3 text-center">Stav</th>
             </tr>
           </thead>
           <tbody className="divide-y">
@@ -260,15 +250,6 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
                   {client.datumAktivace && client.datumKonceFO
                     ? `${client.datumAktivace} - ${client.datumKonceFO}`
                     : '-'}
-                </td>
-                <td className="px-3 py-2 text-center">
-                  {client.vyfakturovano === 'ano' || client.vyfakturovano === 'áno' ? (
-                    <span className="text-green-600">Vyfakturováno</span>
-                  ) : client.canInvoice ? (
-                    <span className="text-blue-600">K fakturaci</span>
-                  ) : (
-                    <span className="text-gray-400">-</span>
-                  )}
                 </td>
               </tr>
             ))}
