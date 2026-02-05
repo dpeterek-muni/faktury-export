@@ -6,6 +6,8 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
   const [subjectCheck, setSubjectCheck] = useState(null);
   const [exportResult, setExportResult] = useState(null);
   const [isDownloadingXML, setIsDownloadingXML] = useState(false);
+  const [xmlPreview, setXmlPreview] = useState(null);
+  const [showXmlModal, setShowXmlModal] = useState(false);
 
   const handleCheckSubjects = async () => {
     if (!config.connected) {
@@ -82,6 +84,31 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
       setExportResult({ success: false, error: error.message });
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handlePreviewXML = async () => {
+    if (!preview || preview.length === 0) {
+      alert('Nejsou žádné faktury k exportu');
+      return;
+    }
+
+    try {
+      const response = await fetch('/api/munipolis/export-xml', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoices: preview }),
+      });
+
+      if (!response.ok) {
+        throw new Error('XML preview failed');
+      }
+
+      const xmlText = await response.text();
+      setXmlPreview(xmlText);
+      setShowXmlModal(true);
+    } catch (error) {
+      alert('Chyba při načítání XML náhledu: ' + error.message);
     }
   };
 
@@ -207,26 +234,54 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
                 : `Vytvořit ${preview?.length || 0} faktur ve Fakturoidu`}
             </button>
 
-            <button
-              onClick={handleDownloadXML}
-              disabled={isDownloadingXML || !preview?.length}
-              className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
-            >
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
+            <div className="flex gap-2">
+              <button
+                onClick={handlePreviewXML}
+                disabled={!preview?.length}
+                className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              {isDownloadingXML ? 'Stahuji...' : 'Stáhnout XML pro Munipolis'}
-            </button>
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  />
+                </svg>
+                Náhled XML
+              </button>
+              <button
+                onClick={handleDownloadXML}
+                disabled={isDownloadingXML || !preview?.length}
+                className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 font-medium flex items-center justify-center gap-2"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {isDownloadingXML ? 'Stahuji...' : 'Stáhnout'}
+              </button>
+            </div>
           </div>
 
           <p className="text-xs text-gray-500 mt-2 text-center">
@@ -309,6 +364,58 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
           </div>
         )}
       </div>
+
+      {/* XML Preview Modal */}
+      {showXmlModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowXmlModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center p-4 border-b">
+              <h3 className="font-semibold text-lg">Náhled XML</h3>
+              <button
+                onClick={() => setShowXmlModal(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="flex-1 overflow-auto p-4">
+              <pre className="bg-gray-50 p-4 rounded text-xs overflow-x-auto">
+                <code>{xmlPreview}</code>
+              </pre>
+            </div>
+            <div className="p-4 border-t flex gap-2 justify-end">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(xmlPreview);
+                  alert('XML zkopírováno do schránky');
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300"
+              >
+                Kopírovat
+              </button>
+              <button
+                onClick={() => setShowXmlModal(false)}
+                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Zavřít
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

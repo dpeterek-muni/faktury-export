@@ -272,8 +272,7 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                   <thead>
                     <tr className="text-left text-xs text-gray-500">
                       <th className="pb-1">Název</th>
-                      <th className="pb-1 text-right">Cena (Excel)</th>
-                      <th className="pb-1 text-right">Cena (finální)</th>
+                      <th className="pb-1 text-right">Cena</th>
                       <th className="pb-1 text-right">DPH</th>
                     </tr>
                   </thead>
@@ -288,17 +287,15 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                             className="w-full border rounded px-2 py-0.5 text-sm"
                           />
                         </td>
-                        <td className="py-1 text-right text-gray-400 text-xs">
-                          {formatCurrency(line.unitPrice, 'CZK')}
-                        </td>
                         <td className="py-1 text-right">
                           <input
                             type="number"
                             value={line.editedPrice || ''}
                             onChange={(e) => handlePriceChange(index, lineIndex, e.target.value)}
-                            className="w-24 text-right border rounded px-2 py-0.5 text-sm"
+                            className="w-32 text-right border rounded px-2 py-1 text-sm"
                             min="0"
-                            step="1"
+                            step="0.01"
+                            lang="en"
                           />
                         </td>
                         <td className="py-1 text-right">
@@ -306,10 +303,11 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                             type="number"
                             value={line.editedVatRate ?? line.vatRate ?? 0}
                             onChange={(e) => handleVatRateChange(index, lineIndex, e.target.value)}
-                            className="w-16 text-right border rounded px-2 py-0.5 text-sm"
+                            className="w-20 text-right border rounded px-2 py-1 text-sm"
                             min="0"
                             max="100"
-                            step="1"
+                            step="0.1"
+                            lang="en"
                           />
                           <span className="ml-1">%</span>
                         </td>
