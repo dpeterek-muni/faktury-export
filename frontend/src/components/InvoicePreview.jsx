@@ -6,22 +6,32 @@ const CURRENCY_BY_COUNTRY = {
   HUN: 'HUF',
 };
 
+const VAT_RATE_BY_COUNTRY = {
+  CZE: 21,
+  SVK: 20,
+  HUN: 27,
+};
+
 const CURRENCIES = ['CZK', 'EUR', 'HUF', 'USD', 'GBP'];
 
 function InvoicePreview({ invoices, options, onInvoicesChange }) {
   const [editableInvoices, setEditableInvoices] = useState([]);
 
-  // Initialize editable invoices with auto-detected currency
+  // Initialize editable invoices with auto-detected currency, VAT, and DUZP
   useEffect(() => {
-    const withCurrency = invoices.map((inv) => ({
+    const today = new Date().toISOString().split('T')[0];
+    const withDefaults = invoices.map((inv) => ({
       ...inv,
       currency: inv.currency || CURRENCY_BY_COUNTRY[inv.stat] || 'CZK',
+      taxableFulfillmentDue: inv.taxableFulfillmentDue || today,
       lines: inv.lines.map((line) => ({
         ...line,
         editedPrice: line.unitPrice,
+        editedName: line.name,
+        editedVatRate: line.vatRate ?? VAT_RATE_BY_COUNTRY[inv.stat] ?? 21,
       })),
     }));
-    setEditableInvoices(withCurrency);
+    setEditableInvoices(withDefaults);
   }, [invoices]);
 
   // Notify parent of changes
@@ -60,6 +70,43 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
     });
   };
 
+  const handleDuzpChange = (invoiceIndex, newDuzp) => {
+    setEditableInvoices((prev) => {
+      const updated = [...prev];
+      updated[invoiceIndex] = {
+        ...updated[invoiceIndex],
+        taxableFulfillmentDue: newDuzp,
+      };
+      return updated;
+    });
+  };
+
+  const handleLineNameChange = (invoiceIndex, lineIndex, newName) => {
+    setEditableInvoices((prev) => {
+      const updated = [...prev];
+      updated[invoiceIndex] = {
+        ...updated[invoiceIndex],
+        lines: updated[invoiceIndex].lines.map((line, idx) =>
+          idx === lineIndex ? { ...line, editedName: newName } : line
+        ),
+      };
+      return updated;
+    });
+  };
+
+  const handleVatRateChange = (invoiceIndex, lineIndex, newVatRate) => {
+    setEditableInvoices((prev) => {
+      const updated = [...prev];
+      updated[invoiceIndex] = {
+        ...updated[invoiceIndex],
+        lines: updated[invoiceIndex].lines.map((line, idx) =>
+          idx === lineIndex ? { ...line, editedVatRate: parseFloat(newVatRate) || 0 } : line
+        ),
+      };
+      return updated;
+    });
+  };
+
   const formatCurrency = (value, currency = 'CZK') => {
     if (value === null || value === undefined) return '-';
     return new Intl.NumberFormat('cs-CZ', {
@@ -89,7 +136,7 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
 
       {/* Info about editing */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-        Ceny jsou editovatelné - klikněte na cenu pro úpravu. Měna se nastavuje automaticky podle státu.
+        Ceny, názvy položek, DPH, měna a DUZP jsou editovatelné. Měna a DPH se nastavují automaticky podle státu.
       </div>
 
       {/* Country breakdown */}
@@ -143,7 +190,7 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                   </p>
                 </div>
                 <div className="text-right">
-                  <div className="flex items-center gap-2 justify-end mb-1">
+                  <div className="flex items-center gap-2 justify-end mb-2">
                     <select
                       value={invoice.currency}
                       onChange={(e) => handleCurrencyChange(index, e.target.value)}
@@ -159,9 +206,15 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                       {formatCurrency(invoice.total, invoice.currency)}
                     </p>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    DUZP: {invoice.taxableFulfillmentDue || 'neuvedeno'}
-                  </p>
+                  <div className="flex items-center gap-2 justify-end">
+                    <label className="text-xs text-gray-500">DUZP:</label>
+                    <input
+                      type="date"
+                      value={invoice.taxableFulfillmentDue || ''}
+                      onChange={(e) => handleDuzpChange(index, e.target.value)}
+                      className="text-xs border rounded px-2 py-1"
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -181,7 +234,14 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                   <tbody>
                     {invoice.lines.map((line, lineIndex) => (
                       <tr key={lineIndex}>
-                        <td className="py-1">{line.name}</td>
+                        <td className="py-1">
+                          <input
+                            type="text"
+                            value={line.editedName || line.name}
+                            onChange={(e) => handleLineNameChange(index, lineIndex, e.target.value)}
+                            className="w-full border rounded px-2 py-0.5 text-sm"
+                          />
+                        </td>
                         <td className="py-1 text-right text-gray-400 text-xs">
                           {formatCurrency(line.unitPrice, 'CZK')}
                         </td>
@@ -195,7 +255,18 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                             step="1"
                           />
                         </td>
-                        <td className="py-1 text-right">{line.vatRate}%</td>
+                        <td className="py-1 text-right">
+                          <input
+                            type="number"
+                            value={line.editedVatRate ?? line.vatRate ?? 0}
+                            onChange={(e) => handleVatRateChange(index, lineIndex, e.target.value)}
+                            className="w-16 text-right border rounded px-2 py-0.5 text-sm"
+                            min="0"
+                            max="100"
+                            step="1"
+                          />
+                          <span className="ml-1">%</span>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

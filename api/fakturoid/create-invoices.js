@@ -57,13 +57,13 @@ async function createInvoice(slug, accessToken, email, invoiceData) {
 function prepareInvoiceData(invoice, subjectId, options = {}) {
   const { dueInDays = 14 } = options;
 
-  // Use the edited prices from preview
+  // Use the edited values from preview (name, price, VAT rate)
   const lines = invoice.lines.map(line => ({
-    name: line.name,
+    name: line.editedName ?? line.name,
     quantity: 1,
     unit_name: 'ks',
     unit_price: line.editedPrice ?? line.unitPrice ?? 0,
-    vat_rate: line.vatRate ?? 0,
+    vat_rate: line.editedVatRate ?? line.vatRate ?? 0,
   }));
 
   return {
