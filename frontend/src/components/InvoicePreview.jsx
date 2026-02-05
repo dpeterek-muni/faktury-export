@@ -66,7 +66,8 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
         ...line,
         editedPrice: line.unitPrice,
         editedName: line.name,
-        editedVatRate: line.vatRate ?? VAT_RATE_BY_COUNTRY[inv.stat] ?? 21,
+        // Use country-based VAT rate, ignore original vatRate (usually 0)
+        editedVatRate: VAT_RATE_BY_COUNTRY[inv.stat] ?? 21,
       })),
     }));
     setEditableInvoices(withDefaults);

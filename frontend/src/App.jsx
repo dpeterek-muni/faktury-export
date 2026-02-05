@@ -18,9 +18,7 @@ function App() {
   });
   const [invoiceOptions, setInvoiceOptions] = useState({
     includePeriodinName: true,
-    vatRate: 21,
     dueInDays: 14,
-    currency: 'CZK',
   });
   const [preview, setPreview] = useState(null);
   const [editedPreview, setEditedPreview] = useState(null);
@@ -179,24 +177,6 @@ function App() {
                   />
                   <span className="text-sm">Zahrnout období v názvu položky</span>
                 </label>
-                <div className="flex items-center space-x-2">
-                  <label className="text-sm">Sazba DPH:</label>
-                  <select
-                    value={invoiceOptions.vatRate}
-                    onChange={(e) =>
-                      setInvoiceOptions({
-                        ...invoiceOptions,
-                        vatRate: parseInt(e.target.value),
-                      })
-                    }
-                    className="border rounded px-2 py-1 text-sm"
-                  >
-                    <option value={0}>0%</option>
-                    <option value={10}>10%</option>
-                    <option value={12}>12%</option>
-                    <option value={21}>21%</option>
-                  </select>
-                </div>
                 <div className="flex items-center space-x-2">
                   <label className="text-sm">Splatnost (dní):</label>
                   <input

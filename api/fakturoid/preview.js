@@ -61,7 +61,8 @@ export default async function handler(req, res) {
           name,
           quantity: 1,
           unitPrice: item.fakturovanaHodnota || 0,
-          vatRate: item.platceDPH ? (options?.vatRate || 21) : 0,
+          // Don't set vatRate here - it will be auto-detected by country in frontend
+          vatRate: null,
         };
       });
 
