@@ -7,16 +7,14 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
-    const { invoices } = req.body;
+    const { invoices, options } = req.body;
 
     if (!invoices || invoices.length === 0) {
       return res.status(400).json({ error: 'No invoices provided' });
     }
 
-    // Generate XML
-    const xml = generateInvoicesXML(invoices);
+    const xml = generateInvoicesXML(invoices, options);
 
-    // Return XML as downloadable file
     res.setHeader('Content-Type', 'application/xml');
     res.setHeader('Content-Disposition', `attachment; filename="faktury-${new Date().toISOString().split('T')[0]}.xml"`);
     res.status(200).send(xml);
@@ -36,58 +34,83 @@ function escapeXml(unsafe) {
     .replace(/'/g, '&apos;');
 }
 
-function generateInvoicesXML(invoices) {
+function addDays(dateStr, days) {
+  const date = new Date(dateStr);
+  date.setDate(date.getDate() + days);
+  return date.toISOString().split('T')[0];
+}
+
+function generateInvoicesXML(invoices, options = {}) {
   const today = new Date().toISOString().split('T')[0];
+  const dueInDays = options?.dueInDays || 14;
 
   let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
-  xml += '<Invoices xmlns="http://munipolis.cz/invoices" version="1.0" exportDate="' + today + '">\n';
+  xml += `<Invoices exportDate="${today}" count="${invoices.length}">\n`;
 
   invoices.forEach((invoice, index) => {
     const invoiceNumber = `FAK${today.replace(/-/g, '')}${String(index + 1).padStart(3, '0')}`;
+    const variableSymbol = `${today.replace(/-/g, '').slice(2)}${String(index + 1).padStart(3, '0')}`;
+    const issuedDate = today;
+    const duzp = invoice.taxableFulfillmentDue || today;
+    const dueDate = addDays(issuedDate, dueInDays);
+    const currency = invoice.currency || 'CZK';
+
+    const totalWithoutVat = invoice.lines.reduce((sum, line) => {
+      return sum + (line.editedPrice || line.unitPrice || 0);
+    }, 0);
     const totalWithVat = invoice.lines.reduce((sum, line) => {
       const price = line.editedPrice || line.unitPrice || 0;
       const vatRate = line.editedVatRate || 0;
       return sum + price * (1 + vatRate / 100);
     }, 0);
-    const totalVat = totalWithVat - invoice.total;
+    const totalVat = totalWithVat - totalWithoutVat;
 
     xml += '  <Invoice>\n';
+
+    // Invoice header
     xml += `    <InvoiceNumber>${escapeXml(invoiceNumber)}</InvoiceNumber>\n`;
-    xml += `    <IssuedDate>${today}</IssuedDate>\n`;
-    xml += `    <TaxableFulfillmentDate>${escapeXml(invoice.taxableFulfillmentDue || today)}</TaxableFulfillmentDate>\n`;
-    xml += `    <Currency>${escapeXml(invoice.currency || 'CZK')}</Currency>\n`;
+    xml += `    <VariableSymbol>${escapeXml(variableSymbol)}</VariableSymbol>\n`;
+    xml += `    <IssuedOn>${issuedDate}</IssuedOn>\n`;
+    xml += `    <TaxableFulfillmentDue>${duzp}</TaxableFulfillmentDue>\n`;
+    xml += `    <DueOn>${dueDate}</DueOn>\n`;
+    xml += `    <Currency>${escapeXml(currency)}</Currency>\n`;
+    xml += `    <PaymentMethod>bank_transfer</PaymentMethod>\n`;
+    xml += `    <Status>open</Status>\n`;
 
-    // Client information
-    xml += '    <Client>\n';
-    xml += `      <ICO>${escapeXml(invoice.ico)}</ICO>\n`;
+    // Client / Subject
+    xml += '    <Subject>\n';
     xml += `      <Name>${escapeXml(invoice.nazevKlienta)}</Name>\n`;
+    xml += `      <RegistrationNo>${escapeXml(invoice.ico)}</RegistrationNo>\n`;
     xml += `      <Country>${escapeXml(invoice.stat)}</Country>\n`;
-    xml += '    </Client>\n';
+    xml += '    </Subject>\n';
 
-    // Invoice items
-    xml += '    <Items>\n';
+    // Invoice lines
+    xml += '    <Lines>\n';
     invoice.lines.forEach((line) => {
       const price = line.editedPrice || line.unitPrice || 0;
       const vatRate = line.editedVatRate || 0;
-      const priceWithVat = price * (1 + vatRate / 100);
+      const vatAmount = price * (vatRate / 100);
+      const totalLine = price + vatAmount;
 
-      xml += '      <Item>\n';
+      xml += '      <Line>\n';
       xml += `        <Name>${escapeXml(line.editedName || line.name)}</Name>\n`;
       xml += `        <Quantity>1</Quantity>\n`;
+      xml += `        <UnitName>ks</UnitName>\n`;
       xml += `        <UnitPrice>${price.toFixed(2)}</UnitPrice>\n`;
-      xml += `        <VATRate>${vatRate}</VATRate>\n`;
-      xml += `        <VATAmount>${(priceWithVat - price).toFixed(2)}</VATAmount>\n`;
-      xml += `        <TotalWithVAT>${priceWithVat.toFixed(2)}</TotalWithVAT>\n`;
-      xml += '      </Item>\n';
+      xml += `        <VatRate>${vatRate}</VatRate>\n`;
+      xml += `        <VatAmount>${vatAmount.toFixed(2)}</VatAmount>\n`;
+      xml += `        <TotalWithoutVat>${price.toFixed(2)}</TotalWithoutVat>\n`;
+      xml += `        <TotalWithVat>${totalLine.toFixed(2)}</TotalWithVat>\n`;
+      xml += '      </Line>\n';
     });
-    xml += '    </Items>\n';
+    xml += '    </Lines>\n';
 
     // Totals
-    xml += '    <Totals>\n';
-    xml += `      <TotalWithoutVAT>${invoice.total.toFixed(2)}</TotalWithoutVAT>\n`;
-    xml += `      <TotalVAT>${totalVat.toFixed(2)}</TotalVAT>\n`;
-    xml += `      <TotalWithVAT>${totalWithVat.toFixed(2)}</TotalWithVAT>\n`;
-    xml += '    </Totals>\n';
+    xml += '    <Summary>\n';
+    xml += `      <TotalWithoutVat>${totalWithoutVat.toFixed(2)}</TotalWithoutVat>\n`;
+    xml += `      <TotalVat>${totalVat.toFixed(2)}</TotalVat>\n`;
+    xml += `      <TotalWithVat>${totalWithVat.toFixed(2)}</TotalWithVat>\n`;
+    xml += '    </Summary>\n';
 
     xml += '  </Invoice>\n';
   });

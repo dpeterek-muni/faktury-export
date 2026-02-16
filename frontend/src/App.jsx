@@ -19,6 +19,7 @@ function App() {
   const [invoiceOptions, setInvoiceOptions] = useState({
     includePeriodinName: true,
     dueInDays: 14,
+    duzp: new Date().toISOString().split('T')[0],
   });
   const [preview, setPreview] = useState(null);
   const [editedPreview, setEditedPreview] = useState(null);
@@ -177,6 +178,20 @@ function App() {
                   />
                   <span className="text-sm">Zahrnout období v názvu položky</span>
                 </label>
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm">DUZP:</label>
+                  <input
+                    type="date"
+                    value={invoiceOptions.duzp}
+                    onChange={(e) =>
+                      setInvoiceOptions({
+                        ...invoiceOptions,
+                        duzp: e.target.value,
+                      })
+                    }
+                    className="border rounded px-2 py-1 text-sm"
+                  />
+                </div>
                 <div className="flex items-center space-x-2">
                   <label className="text-sm">Splatnost (dní):</label>
                   <input

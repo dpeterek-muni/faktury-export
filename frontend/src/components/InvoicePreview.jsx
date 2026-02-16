@@ -58,10 +58,11 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
   // Initialize editable invoices with auto-detected currency, VAT, and DUZP
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
+    const globalDuzp = options?.duzp || today;
     const withDefaults = invoices.map((inv) => ({
       ...inv,
       currency: inv.currency || CURRENCY_BY_COUNTRY[inv.stat] || 'CZK',
-      taxableFulfillmentDue: inv.taxableFulfillmentDue || today,
+      taxableFulfillmentDue: globalDuzp,
       lines: inv.lines.map((line) => ({
         ...line,
         editedPrice: line.unitPrice,

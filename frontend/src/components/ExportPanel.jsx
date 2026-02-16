@@ -97,7 +97,7 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
       const response = await fetch('/api/munipolis/export-xml', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoices: preview }),
+        body: JSON.stringify({ invoices: preview, options }),
       });
 
       if (!response.ok) {
@@ -124,7 +124,7 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
       const response = await fetch('/api/munipolis/export-xml', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoices: preview }),
+        body: JSON.stringify({ invoices: preview, options }),
       });
 
       if (!response.ok) {
@@ -214,8 +214,10 @@ function ExportPanel({ config, onConfigChange, clients, options, preview }) {
               <span className="font-medium">{preview?.length || 0}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span>Stát:</span>
-              <span className="font-medium">CZE + SVK (první fáze)</span>
+              <span>Státy:</span>
+              <span className="font-medium">
+                {preview ? [...new Set(preview.map((p) => p.stat))].sort().join(', ') : '-'}
+              </span>
             </div>
             <div className="flex justify-between text-sm">
               <span>Stav po vytvoření:</span>
