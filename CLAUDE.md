@@ -91,15 +91,17 @@ const clientId = hasUserCredentials ? bodyClientId : process.env.FAKTUROID_CLIEN
 ```
 
 ### 2. Auto-Detection by Country
-- **VAT rates**: Automatically set based on country (CZE: 21%, SVK: 20%, HUN: 27%, etc.)
-- **Currency**: Auto-mapped by country (CZE→CZK, SVK→EUR, HUN→HUF, etc.)
+- **VAT rates**: Automatically set based on country (CZE: 21%, SVK: 20%, DEU: 19%, HUN: 27%, etc.)
+- **Currency**: Auto-mapped by country (CZE→CZK, SVK→EUR, DEU→EUR, HUN→HUF, POL→PLN, etc.)
+- **22 countries supported**: CZE, SVK, HUN, DEU, AUT, POL, CHE, BEL, NLD, FRA, ITA, ESP, PRT, ROU, BGR, HRV, SVN, SRB, BIH, UKR, GBR, USA
 - **Mappings**: See `CURRENCY_BY_COUNTRY` and `VAT_RATE_BY_COUNTRY` in `frontend/src/components/InvoicePreview.jsx`
 
 All values remain editable by the user in the invoice preview.
 
 ### 3. DUZP (Taxable Fulfillment Date)
+- **Global setting**: Configurable in step 2 (item selection), default is today's date
+- **Per-invoice override**: User can change DUZP for individual invoices in step 3 (preview)
 - **Default**: Today's date (safe, always legal)
-- **Editable**: User can change per invoice
 - **Czech law requirement**: DUZP must not be older than 14 days from invoice issue date
 
 ### 4. Invoice Grouping
@@ -112,7 +114,8 @@ Items with `vyfakturovano === 'ano'` or `vyfakturovano === 'áno'` are automatic
 ### 6. XML Export
 Standard invoice XML format generated in `/api/munipolis/export-xml.js`:
 - Includes all edited values (prices, VAT, names, currency, DUZP)
-- Can be previewed before download
+- Can be previewed before download (syntax-highlighted modal with copy/open-in-browser)
+- Fields: InvoiceNumber, VariableSymbol, IssuedOn, TaxableFulfillmentDue, DueOn, Currency, Subject, Lines, Summary
 - Ready for Munipolis integration (format may need adjustment when exact spec is available)
 
 ## Working with the Codebase
