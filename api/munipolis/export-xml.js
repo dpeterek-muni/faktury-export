@@ -68,6 +68,9 @@ function generateInvoicesXML(invoices, options = {}) {
     xml += '  <Invoice>\n';
 
     // Invoice header
+    if (invoice.mrId) {
+      xml += `    <MrID>${escapeXml(String(invoice.mrId))}</MrID>\n`;
+    }
     xml += `    <InvoiceNumber>${escapeXml(invoiceNumber)}</InvoiceNumber>\n`;
     xml += `    <VariableSymbol>${escapeXml(variableSymbol)}</VariableSymbol>\n`;
     xml += `    <IssuedOn>${issuedDate}</IssuedOn>\n`;
@@ -93,6 +96,9 @@ function generateInvoicesXML(invoices, options = {}) {
       const totalLine = price + vatAmount;
 
       xml += '      <Line>\n';
+      if (line.mrId) {
+        xml += `        <MrID>${escapeXml(String(line.mrId))}</MrID>\n`;
+      }
       xml += `        <Name>${escapeXml(line.editedName || line.name)}</Name>\n`;
       xml += `        <Quantity>1</Quantity>\n`;
       xml += `        <UnitName>ks</UnitName>\n`;

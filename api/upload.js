@@ -106,6 +106,8 @@ export default async function handler(req, res) {
         mesiacFakturace: parseDate(findColumn(row, 'Měsíc fakturace', 'mesic fakturace')),
         platceDPH: findColumn(row, 'Platce DPH') === 'ano',
         poznamkaFakturace: findColumn(row, 'Poznámka', 'poznamka'),
+        mrId: findColumn(row, 'MrID', 'mrid'),
+        nazovPolozky: findColumn(row, 'Názov položky do fakturácie', 'nazov polozky do fakturacie', 'Nazov polozky'),
         selected: false,
         canInvoice: canBeInvoiced(row, fakturovanaHodnota, vyfakturovano),
       };

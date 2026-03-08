@@ -53,7 +53,8 @@ export default async function handler(req, res) {
       const includePeriodinName = options?.includePeriodinName ?? true;
 
       const lines = group.items.map(item => {
-        let name = item.sluzba || 'Licence';
+        // Use "Názov položky do fakturácie" (column AZ) if available, fallback to sluzba
+        let name = item.nazovPolozky || item.sluzba || 'Licence';
         if (includePeriodinName && item.datumAktivace && item.datumKonceFO) {
           name = `${name} (${formatDateCZ(item.datumAktivace)} - ${formatDateCZ(item.datumKonceFO)})`;
         }
@@ -63,6 +64,7 @@ export default async function handler(req, res) {
           unitPrice: item.fakturovanaHodnota || 0,
           // Don't set vatRate here - it will be auto-detected by country in frontend
           vatRate: null,
+          mrId: item.mrId || null,
         };
       });
 
@@ -77,6 +79,7 @@ export default async function handler(req, res) {
         total,
         taxableFulfillmentDue: group.items[0]?.datumAktivace,
         hasIco: group.hasIco,
+        mrId: group.items[0]?.mrId || null,
       };
     });
 
