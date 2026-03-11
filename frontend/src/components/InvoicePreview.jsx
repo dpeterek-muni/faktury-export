@@ -147,6 +147,46 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
     });
   };
 
+  const handleAddLine = (invoiceIndex) => {
+    setEditableInvoices((prev) => {
+      const updated = [...prev];
+      const inv = updated[invoiceIndex];
+      const defaultVat = VAT_RATE_BY_COUNTRY[inv.stat] ?? 21;
+      updated[invoiceIndex] = {
+        ...inv,
+        itemCount: (inv.itemCount || inv.lines.length) + 1,
+        lines: [
+          ...inv.lines,
+          {
+            name: 'Nová položka',
+            editedName: 'Nová položka',
+            unitPrice: 0,
+            editedPrice: 0,
+            vatRate: defaultVat,
+            editedVatRate: defaultVat,
+          },
+        ],
+      };
+      return updated;
+    });
+  };
+
+  const handleRemoveLine = (invoiceIndex, lineIndex) => {
+    setEditableInvoices((prev) => {
+      const updated = [...prev];
+      const inv = updated[invoiceIndex];
+      if (inv.lines.length <= 1) return prev;
+      const newLines = inv.lines.filter((_, idx) => idx !== lineIndex);
+      updated[invoiceIndex] = {
+        ...inv,
+        itemCount: newLines.length,
+        lines: newLines,
+        total: newLines.reduce((sum, line) => sum + (line.editedPrice || 0), 0),
+      };
+      return updated;
+    });
+  };
+
   const formatCurrency = (value, currency = 'CZK') => {
     if (value === null || value === undefined) return '-';
     return new Intl.NumberFormat('cs-CZ', {
@@ -176,7 +216,7 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
 
       {/* Info about editing */}
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-700">
-        Ceny, názvy položek, DPH, měna a DUZP jsou editovatelné. Měna a DPH se nastavují automaticky podle státu.
+        Ceny, názvy položek, DPH, měna a DUZP jsou editovatelné. Položky lze přidávat a odebírat. Měna a DPH se nastavují automaticky podle státu.
       </div>
 
       {/* Country breakdown */}
@@ -275,6 +315,7 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                       <th className="pb-1">Název</th>
                       <th className="pb-1 text-right">Cena</th>
                       <th className="pb-1 text-right">DPH</th>
+                      <th className="pb-1 w-8"></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -312,10 +353,27 @@ function InvoicePreview({ invoices, options, onInvoicesChange }) {
                           />
                           <span className="ml-1">%</span>
                         </td>
+                        <td className="py-1 text-center">
+                          {invoice.lines.length > 1 && (
+                            <button
+                              onClick={() => handleRemoveLine(index, lineIndex)}
+                              className="text-red-400 hover:text-red-600 text-lg leading-none"
+                              title="Odebrat položku"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+                <button
+                  onClick={() => handleAddLine(index)}
+                  className="mt-2 text-sm text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                >
+                  <span className="text-lg leading-none">+</span> Přidat položku
+                </button>
               </div>
             </div>
           ))}
