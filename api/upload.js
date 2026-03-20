@@ -85,17 +85,20 @@ export default async function handler(req, res) {
       workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
     }
 
-    // Select sheet: explicit > fuzzy match "Databáza klientov" > first sheet
-    const normalize = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    // Select sheet: explicit > auto-detect by column headers > first sheet
+    const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     let selectedSheet;
     if (sheetName && workbook.Sheets[sheetName]) {
       selectedSheet = sheetName;
     } else {
-      // Try exact match first, then fuzzy match for "databaza klientov"
-      const dbSheet = workbook.SheetNames.find(
-        (s) => s === 'Databáza klientov' || normalize(s).includes('databaz') && normalize(s).includes('klient')
-      );
-      selectedSheet = dbSheet || workbook.SheetNames[0];
+      // Find the sheet that has data columns (IČO, klient, faktur)
+      const dataSheet = workbook.SheetNames.find((name) => {
+        const sheet = workbook.Sheets[name];
+        const headers = (XLSX.utils.sheet_to_json(sheet, { header: 1 })[0] || []);
+        const joined = headers.map(h => norm(String(h))).join(' ');
+        return joined.includes('ico') || (joined.includes('klient') && joined.includes('faktur'));
+      });
+      selectedSheet = dataSheet || workbook.SheetNames[0];
     }
 
     const mainSheet = workbook.Sheets[selectedSheet];
