@@ -8,6 +8,15 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
     typCinnosti: '',
   });
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
+  const [showInvoiced, setShowInvoiced] = useState(false);
+
+  // Count already invoiced items
+  const invoicedCount = useMemo(() => {
+    return clients.filter((c) => {
+      const v = (c.vyfakturovano || '').toString().toLowerCase().trim();
+      return v === 'ano' || v === 'áno';
+    }).length;
+  }, [clients]);
 
   // Unique values for filters
   const filterOptions = useMemo(() => {
@@ -21,8 +30,9 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
   // Filtered and sorted clients
   const filteredClients = useMemo(() => {
     let result = clients.filter((client) => {
-      // Auto-filter: exclude already invoiced items
-      if (client.vyfakturovano === 'ano' || client.vyfakturovano === 'áno') {
+      // Auto-filter: exclude already invoiced items (case-insensitive)
+      const vyfak = (client.vyfakturovano || '').toString().toLowerCase().trim();
+      if ((vyfak === 'ano' || vyfak === 'áno') && !showInvoiced) {
         return false;
       }
 
@@ -60,7 +70,7 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
     }
 
     return result;
-  }, [clients, filters, sortConfig]);
+  }, [clients, filters, sortConfig, showInvoiced]);
 
   const handleSort = (key) => {
     setSortConfig((prev) => ({
@@ -87,6 +97,10 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
   };
 
   const isSelected = (client) => selectedClients.some((c) => c.id === client.id);
+  const isInvoiced = (client) => {
+    const v = (client.vyfakturovano || '').toString().toLowerCase().trim();
+    return v === 'ano' || v === 'áno';
+  };
 
   const selectableCount = filteredClients.length;
   const selectedCount = selectedClients.length;
@@ -149,9 +163,24 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
             ))}
           </select>
         </div>
-        <div className="mt-2 text-sm text-gray-500">
-          Zobrazeno {filteredClients.length} z {clients.length} záznamů
-          {selectedCount > 0 && ` (vybráno: ${selectedCount})`}
+        <div className="mt-2 text-sm text-gray-500 flex items-center justify-between">
+          <span>
+            Zobrazeno {filteredClients.length} z {clients.length} záznamů
+            {selectedCount > 0 && ` (vybráno: ${selectedCount})`}
+          </span>
+          {invoicedCount > 0 && (
+            <label className="flex items-center space-x-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showInvoiced}
+                onChange={(e) => setShowInvoiced(e.target.checked)}
+                className="rounded border-gray-300"
+              />
+              <span className="text-sm">
+                Zobrazit již fakturované ({invoicedCount})
+              </span>
+            </label>
+          )}
         </div>
       </div>
 
@@ -208,21 +237,27 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {filteredClients.map((client) => (
+            {filteredClients.map((client) => {
+              const invoiced = isInvoiced(client);
+              return (
               <tr
                 key={client.id}
-                className={`hover:bg-gray-50 cursor-pointer ${
+                className={`${invoiced ? 'opacity-40' : 'hover:bg-gray-50 cursor-pointer'} ${
                   isSelected(client) ? 'bg-blue-50' : ''
                 }`}
-                onClick={() => handleSelectOne(client, !isSelected(client))}
+                onClick={() => !invoiced && handleSelectOne(client, !isSelected(client))}
               >
                 <td className="px-3 py-2">
+                  {invoiced ? (
+                    <span className="text-xs text-gray-400" title="Již fakturováno">✓</span>
+                  ) : (
                   <input
                     type="checkbox"
                     checked={isSelected(client)}
                     onChange={(e) => handleSelectOne(client, e.target.checked)}
                     className="rounded border-gray-300 cursor-pointer"
                   />
+                  )}
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">{client.ico || '-'}</td>
                 <td className="px-3 py-2 max-w-xs truncate" title={client.nazevKlienta}>
@@ -252,14 +287,17 @@ function ClientsTable({ clients, selectedClients, onSelectionChange }) {
                     : '-'}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {filteredClients.length === 0 && (
         <div className="p-8 text-center text-gray-500">
-          Žádné záznamy neodpovídají filtrům
+          {invoicedCount > 0 && !showInvoiced
+            ? `Všechny záznamy jsou již fakturované (${invoicedCount}). Zaškrtněte "Zobrazit již fakturované" pro jejich zobrazení.`
+            : 'Žádné záznamy neodpovídají filtrům'}
         </div>
       )}
     </div>

@@ -24,12 +24,48 @@ function App() {
   const [preview, setPreview] = useState(null);
   const [editedPreview, setEditedPreview] = useState(null);
   const [step, setStep] = useState(1); // 1: Upload, 2: Select, 3: Preview, 4: Export
+  const [uploadInfo, setUploadInfo] = useState(null); // { fileData, filename, sheets, selectedSheet }
+  const [sheetLoading, setSheetLoading] = useState(false);
 
   const handleFileUpload = (data) => {
     setClients(data.clients);
     setSelectedClients([]);
     setPreview(null);
+    setUploadInfo({
+      fileData: data.fileData,
+      filename: data.filename,
+      sheets: data.sheets || [],
+      selectedSheet: data.selectedSheet || '',
+    });
     setStep(2);
+  };
+
+  const handleSheetChange = async (sheetName) => {
+    if (!uploadInfo) return;
+    setSheetLoading(true);
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileData: uploadInfo.fileData,
+          filename: uploadInfo.filename,
+          sheetName,
+        }),
+      });
+      const data = await response.json();
+      if (data.success) {
+        setClients(data.clients);
+        setSelectedClients([]);
+        setUploadInfo((prev) => ({ ...prev, selectedSheet: sheetName }));
+      } else {
+        alert('Chyba při načítání listu: ' + data.error);
+      }
+    } catch (error) {
+      alert('Chyba: ' + error.message);
+    } finally {
+      setSheetLoading(false);
+    }
   };
 
   const handleSelectionChange = (selected) => {
@@ -159,6 +195,30 @@ function App() {
                 </button>
               </div>
             </div>
+
+            {/* Sheet selector for multi-sheet files */}
+            {uploadInfo?.sheets?.length > 1 && (
+              <div className="bg-white p-4 rounded-lg shadow-sm border">
+                <div className="flex items-center gap-3">
+                  <label className="text-sm font-medium whitespace-nowrap">List v souboru:</label>
+                  <select
+                    value={uploadInfo.selectedSheet}
+                    onChange={(e) => handleSheetChange(e.target.value)}
+                    disabled={sheetLoading}
+                    className="border rounded-lg px-3 py-2 text-sm flex-grow"
+                  >
+                    {uploadInfo.sheets.map((sheet) => (
+                      <option key={sheet} value={sheet}>
+                        {sheet}
+                      </option>
+                    ))}
+                  </select>
+                  {sheetLoading && (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Invoice Options */}
             <div className="bg-white p-4 rounded-lg shadow-sm border">

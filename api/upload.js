@@ -34,7 +34,8 @@ function parseDate(value) {
 }
 
 function canBeInvoiced(row, fakturovanaHodnota, vyfakturovano) {
-  return fakturovanaHodnota > 0 && vyfakturovano !== 'ano' && vyfakturovano !== 'áno' && vyfakturovano !== 'částečně' && vyfakturovano !== 'čiastočne';
+  const v = (vyfakturovano || '').toString().toLowerCase().trim();
+  return fakturovanaHodnota > 0 && v !== 'ano' && v !== 'áno' && v !== 'částečně' && v !== 'čiastočne';
 }
 
 // Find column by partial match (handles encoding issues)
@@ -65,7 +66,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { fileData, filename } = req.body;
+    const { fileData, filename, sheetName } = req.body;
 
     if (!fileData) {
       return res.status(400).json({ error: 'No file data provided' });
@@ -73,9 +74,28 @@ export default async function handler(req, res) {
 
     // Decode base64
     const buffer = Buffer.from(fileData, 'base64');
-    const workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
 
-    const mainSheet = workbook.Sheets['Databáza klientov'] || workbook.Sheets[workbook.SheetNames[0]];
+    // Parse file (XLSX library handles xlsx, xls, and csv)
+    const isCSV = filename?.toLowerCase().endsWith('.csv');
+    let workbook;
+    if (isCSV) {
+      const text = buffer.toString('utf-8').replace(/^\uFEFF/, ''); // strip BOM
+      workbook = XLSX.read(text, { type: 'string', cellDates: true });
+    } else {
+      workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
+    }
+
+    // Select sheet: explicit > "Databáza klientov" > first sheet
+    let selectedSheet;
+    if (sheetName && workbook.Sheets[sheetName]) {
+      selectedSheet = sheetName;
+    } else if (workbook.Sheets['Databáza klientov']) {
+      selectedSheet = 'Databáza klientov';
+    } else {
+      selectedSheet = workbook.SheetNames[0];
+    }
+
+    const mainSheet = workbook.Sheets[selectedSheet];
     const rawData = XLSX.utils.sheet_to_json(mainSheet, { defval: null });
 
     const clients = rawData.map((row, index) => {
@@ -117,6 +137,7 @@ export default async function handler(req, res) {
       success: true,
       filename,
       sheets: workbook.SheetNames,
+      selectedSheet,
       totalClients: clients.length,
       clients,
     });

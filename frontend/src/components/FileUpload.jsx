@@ -33,8 +33,9 @@ function FileUpload({ onUpload }) {
   };
 
   const uploadFile = async (file) => {
-    if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
-      setError('Povolené jsou pouze Excel soubory (.xlsx, .xls)');
+    const ext = file.name.toLowerCase();
+    if (!ext.endsWith('.xlsx') && !ext.endsWith('.xls') && !ext.endsWith('.csv')) {
+      setError('Povolené jsou pouze soubory .xlsx, .xls nebo .csv');
       return;
     }
 
@@ -65,7 +66,7 @@ function FileUpload({ onUpload }) {
       const data = await response.json();
 
       if (data.success) {
-        onUpload(data);
+        onUpload({ ...data, fileData: base64 });
       } else {
         setError(data.error || 'Chyba při nahrávání souboru');
       }
@@ -94,7 +95,7 @@ function FileUpload({ onUpload }) {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".xlsx,.xls"
+          accept=".xlsx,.xls,.csv"
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -126,10 +127,10 @@ function FileUpload({ onUpload }) {
               />
             </svg>
             <p className="text-gray-600 mb-2">
-              Přetáhněte Excel soubor sem nebo klikněte pro výběr
+              Přetáhněte soubor sem nebo klikněte pro výběr
             </p>
             <p className="text-sm text-gray-400">
-              Podporované formáty: .xlsx, .xls
+              Podporované formáty: .xlsx, .xls, .csv
             </p>
           </>
         )}
@@ -144,7 +145,8 @@ function FileUpload({ onUpload }) {
       <div className="mt-4 text-sm text-gray-500">
         <p className="font-medium mb-1">Očekávaná struktura souboru:</p>
         <ul className="list-disc list-inside space-y-1">
-          <li>List "Databáza klientov" s evidencí licencí</li>
+          <li>Excel: automaticky vybere list "Databáza klientov" (nebo lze přepnout)</li>
+          <li>CSV: UTF-8, středník nebo čárka jako oddělovač</li>
           <li>Sloupce: IČO, Název klienta, Služba, Fakturovaná hodnota, atd.</li>
         </ul>
       </div>
