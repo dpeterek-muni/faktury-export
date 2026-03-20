@@ -85,14 +85,17 @@ export default async function handler(req, res) {
       workbook = XLSX.read(buffer, { type: 'buffer', cellDates: true });
     }
 
-    // Select sheet: explicit > "Databáza klientov" > first sheet
+    // Select sheet: explicit > fuzzy match "Databáza klientov" > first sheet
+    const normalize = (s) => s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     let selectedSheet;
     if (sheetName && workbook.Sheets[sheetName]) {
       selectedSheet = sheetName;
-    } else if (workbook.Sheets['Databáza klientov']) {
-      selectedSheet = 'Databáza klientov';
     } else {
-      selectedSheet = workbook.SheetNames[0];
+      // Try exact match first, then fuzzy match for "databaza klientov"
+      const dbSheet = workbook.SheetNames.find(
+        (s) => s === 'Databáza klientov' || normalize(s).includes('databaz') && normalize(s).includes('klient')
+      );
+      selectedSheet = dbSheet || workbook.SheetNames[0];
     }
 
     const mainSheet = workbook.Sheets[selectedSheet];
