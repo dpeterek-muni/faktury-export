@@ -8,6 +8,26 @@ import LoginPage from './components/LoginPage';
 
 function App() {
   const [auth, setAuth] = useState({ loading: true, user: null });
+  const [clients, setClients] = useState([]);
+  const [selectedClients, setSelectedClients] = useState([]);
+  const [fakturoidConfig, setFakturoidConfig] = useState({
+    slug: '',
+    clientId: '',
+    clientSecret: '',
+    email: '',
+    connected: false,
+    accessToken: '',
+  });
+  const [invoiceOptions, setInvoiceOptions] = useState({
+    includePeriodinName: true,
+    dueInDays: 14,
+    duzp: new Date().toISOString().split('T')[0],
+  });
+  const [preview, setPreview] = useState(null);
+  const [editedPreview, setEditedPreview] = useState(null);
+  const [step, setStep] = useState(1);
+  const [uploadInfo, setUploadInfo] = useState(null);
+  const [sheetLoading, setSheetLoading] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
@@ -30,26 +50,6 @@ function App() {
   }
 
   if (!auth.user) return <LoginPage />;
-  const [clients, setClients] = useState([]);
-  const [selectedClients, setSelectedClients] = useState([]);
-  const [fakturoidConfig, setFakturoidConfig] = useState({
-    slug: '',
-    clientId: '',
-    clientSecret: '',
-    email: '',
-    connected: false,
-    accessToken: '',
-  });
-  const [invoiceOptions, setInvoiceOptions] = useState({
-    includePeriodinName: true,
-    dueInDays: 14,
-    duzp: new Date().toISOString().split('T')[0],
-  });
-  const [preview, setPreview] = useState(null);
-  const [editedPreview, setEditedPreview] = useState(null);
-  const [step, setStep] = useState(1); // 1: Upload, 2: Select, 3: Preview, 4: Export
-  const [uploadInfo, setUploadInfo] = useState(null); // { fileData, filename, sheets, selectedSheet }
-  const [sheetLoading, setSheetLoading] = useState(false);
 
   const handleFileUpload = (data) => {
     setClients(data.clients);
