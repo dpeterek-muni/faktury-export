@@ -1,11 +1,35 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import FileUpload from './components/FileUpload';
 import ClientsTable from './components/ClientsTable';
 import FakturoidSettings from './components/FakturoidSettings';
 import InvoicePreview from './components/InvoicePreview';
 import ExportPanel from './components/ExportPanel';
+import LoginPage from './components/LoginPage';
 
 function App() {
+  const [auth, setAuth] = useState({ loading: true, user: null });
+
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then((r) => r.json())
+      .then((data) => setAuth({ loading: false, user: data.authenticated ? data.user : null }))
+      .catch(() => setAuth({ loading: false, user: null }));
+  }, []);
+
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    setAuth({ loading: false, user: null });
+  };
+
+  if (auth.loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!auth.user) return <LoginPage />;
   const [clients, setClients] = useState([]);
   const [selectedClients, setSelectedClients] = useState([]);
   const [fakturoidConfig, setFakturoidConfig] = useState({
@@ -104,13 +128,27 @@ function App() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <h1 className="text-2xl font-bold text-gray-900">
-            Evidence licencí → Fakturoid
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Export licencí a služeb do fakturačního systému
-          </p>
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">
+              Evidence licencí → Fakturoid
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              Export licencí a služeb do fakturačního systému
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            {auth.user.picture && (
+              <img src={auth.user.picture} alt="" className="w-8 h-8 rounded-full" />
+            )}
+            <span className="text-sm text-gray-600">{auth.user.name || auth.user.email}</span>
+            <button
+              onClick={handleLogout}
+              className="text-sm text-gray-400 hover:text-gray-600"
+            >
+              Odhlásit
+            </button>
+          </div>
         </div>
       </header>
 

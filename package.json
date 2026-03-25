@@ -9,6 +9,7 @@
     "install:all": "npm install && cd backend && npm install && cd ../frontend && npm install"
   },
   "dependencies": {
+    "jsonwebtoken": "^9.0.3",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
