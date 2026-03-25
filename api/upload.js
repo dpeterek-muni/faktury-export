@@ -24,8 +24,18 @@ function parseDate(value) {
   if (value instanceof Date) {
     return value.toISOString().split('T')[0];
   }
+  const str = String(value).trim();
+  // Handle DD/MM/YYYY or DD.MM.YYYY format (European dates)
+  const euMatch = str.match(/^(\d{1,2})[/.](\d{1,2})[/.](\d{4})$/);
+  if (euMatch) {
+    const [, day, month, year] = euMatch;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  // Handle YYYY-MM-DD (ISO format)
+  const isoMatch = str.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) return str;
   try {
-    const date = new Date(value);
+    const date = new Date(str);
     if (!isNaN(date.getTime())) {
       return date.toISOString().split('T')[0];
     }
